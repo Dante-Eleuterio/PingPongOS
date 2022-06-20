@@ -16,15 +16,15 @@ int queue_size(queue_t *queue){
 
 int queue_append (queue_t **queue, queue_t *elem){
     if(!queue){
-        fprintf(stderr,"queue does not exist \n");
+        fprintf(stderr,"Queue does not exist \n");
         return -1;
     }
     if(!elem){
-        fprintf(stderr,"elem does not exist \n");
+        fprintf(stderr,"Elem does not exist \n");
         return -1;
     }
     if(elem->next!=NULL){
-        fprintf(stderr,"elem already exists in anoter queue\n");
+        fprintf(stderr,"Elem already exists in a queue\n");
         return -1;
     }
     
@@ -42,7 +42,23 @@ int queue_append (queue_t **queue, queue_t *elem){
     (*queue)->prev=elem;
     return 0;
 }
-void queue_print (char *name, queue_t *queue, void print_elem (void*) ) {}
+void queue_print (char *name, queue_t *queue, void print_elem (void*) ) {
+    queue_t *aux=queue;
+    if(!aux)
+        fprintf(stdout,"%s: []\n",name);
+    else\
+    {
+        fprintf(stdout,"%s: [",name);
+        do{
+            print_elem(aux);
+            if(aux->next!=queue)
+                fprintf(stdout," ");
+            aux=aux->next;
+        } while (aux!=queue);
+        fprintf(stdout,"]\n");
+
+    }
+}
 
 int find_elem(queue_t **queue,queue_t *elem){
     queue_t *aux=(*queue);
@@ -56,7 +72,7 @@ int find_elem(queue_t **queue,queue_t *elem){
 
 int queue_remove (queue_t **queue, queue_t *elem){
     if(!queue){
-        fprintf(stderr,"queue does not exist \n");
+        fprintf(stderr,"Queue does not exist \n");
         return -1;
     }
     
@@ -65,11 +81,11 @@ int queue_remove (queue_t **queue, queue_t *elem){
         return -1;
     }
     if(!elem){
-        fprintf(stderr,"elem does not exist \n");
+        fprintf(stderr,"Elem does not exist \n");
         return -1;
     }
     if(!find_elem(queue,elem)){
-        fprintf(stderr,"elem does not belong to this queue\n");
+        fprintf(stderr,"Elem does not belong to this queue\n");
         return -1;
     }
 
