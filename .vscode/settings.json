@@ -1,0 +1,7 @@
+{
+    "C_Cpp.errorSquiggles": "Disabled",
+    "files.associations": {
+        "ppos_data.h": "c",
+        "ppos.h": "c"
+    }
+}
