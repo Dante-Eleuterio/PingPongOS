@@ -4,6 +4,7 @@
         "ppos_data.h": "c",
         "ppos.h": "c",
         "ucontext.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "queue.h": "c"
     }
 }

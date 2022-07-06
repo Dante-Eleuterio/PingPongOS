@@ -14,7 +14,7 @@ int queue_size(queue_t *queue){
     return size;
 }
 
-int queue_append (queue_t **queue, queue_t *elem){
+int queue_append(queue_t **queue, queue_t *elem){
     if(!queue){
         fprintf(stderr,"Queue does not exist \n");
         return -1;
@@ -42,7 +42,7 @@ int queue_append (queue_t **queue, queue_t *elem){
     (*queue)->prev=elem;
     return 0;
 }
-void queue_print (char *name, queue_t *queue, void print_elem (void*) ) {
+void queue_print(char *name, queue_t *queue, void print_elem (void*) ) {
     queue_t *aux=queue;
     if(!aux)
         fprintf(stdout,"%s: []\n",name);
@@ -70,7 +70,7 @@ int find_elem(queue_t **queue,queue_t *elem){
     return 0;    
 }
 
-int queue_remove (queue_t **queue, queue_t *elem){
+int queue_remove(queue_t **queue, queue_t *elem){
     if(!queue){
         fprintf(stderr,"Queue does not exist \n");
         return -1;
