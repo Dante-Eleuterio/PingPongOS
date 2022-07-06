@@ -90,7 +90,7 @@ void task_exit (int exit_code){
         queue_remove((queue_t **) &queue,(queue_t*) currentContext);
         userTasks--;
     }
-    if(task_id()==2)
+    if(task_id()==1)
         task_switch(&contextmain);
     else
         task_switch(&DispatcherContext);
