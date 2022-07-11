@@ -7,6 +7,9 @@
 #ifndef __PPOS_DATA__
 #define __PPOS_DATA__
 
+#define PRONTA 1
+#define TERMINADA 0
+#define SUSPENSA 2
 #include <ucontext.h>		// biblioteca POSIX de trocas de contexto
 
 // Estrutura que define um Task Control Block (TCB)
@@ -17,6 +20,8 @@ typedef struct task_t
   ucontext_t context ;			// contexto armazenado da tarefa
   short status ;			// pronta, rodando, suspensa, ...
   short preemptable ;			// pode ser preemptada?
+  int Sprio;
+  int Dprio;
    // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 

@@ -14,23 +14,74 @@ task_t *queue;
 int IDcounter;
 int userTasks;
 
+void task_setprio (task_t *task, int prio){
+    if(prio<=20 && prio >=-20){
+        if(task){
+            task->Sprio = prio;
+            task->Dprio = prio;
+        }
+        else{
+            currentContext->Sprio=prio;
+            currentContext->Dprio=prio;
+        }
+    }
+    else
+        fprintf(stderr,"Priority greater than 20 or lesser than -20");
+}
+
+int task_getprio (task_t *task){
+    if(task)
+        return task->Sprio;
+    else
+        return currentContext->Sprio;
+}
+
+
 void task_yield (){
     task_switch(&DispatcherContext);
 }
 
+
 task_t *scheduler(){
-    task_t* prox=queue;
-    queue=queue->next;
-    return (prox);
+    task_t* first=queue;
+    task_t* aux=first->next;
+    first->Dprio=first->Sprio;
+    while (aux!=first){
+        aux->Dprio--;
+        aux=aux->next;
+    }
+    aux=first->next;
+    while (aux!=first){
+        if(queue->Dprio>aux->Dprio)
+            queue=aux;
+        aux=aux->next;
+    }
+    return (first);
 }
 
 void Dispatcher(){
 
-    task_t *proxima;
+    task_t *next_t;
     while(userTasks>0){
-        proxima=scheduler();
-        if(proxima!=NULL){
-            task_switch(proxima);
+        next_t=scheduler();
+        if(next_t!=NULL){
+            task_switch(next_t);
+            switch (next_t->status)
+            {
+            case PRONTA:
+                break;
+            case TERMINADA:
+                if(queue_size((queue_t*) queue)!=0){
+                    queue_remove((queue_t **) &queue,(queue_t*) next_t);
+                    userTasks--;
+                    free(next_t->context.uc_stack.ss_sp);
+                }
+                break;
+            case SUSPENSA:
+                break;
+            default:
+                break;
+            }
         }
     }
     task_exit(0);
@@ -42,10 +93,9 @@ void ppos_init (){
     userTasks=0;
     IDcounter=0;
     contextmain.id=0;
-    contextmain.status=1;
+    contextmain.status=PRONTA;
     contextmain.next=NULL;
     contextmain.prev=NULL;
-    contextmain.preemptable=0;
     currentContext=&contextmain;
 
 
@@ -71,11 +121,12 @@ int task_create (task_t *task,void (*start_func)(void *),void *arg){
     }
     IDcounter++;
     task->id=IDcounter;
-    task->status=1;
+    task->status=PRONTA;
     task->next=NULL;
     task->prev=NULL;
     task->preemptable=0;
-    
+    task->Sprio=0;
+    task->Dprio=0;
     if(task->id>=2){
         queue_append((queue_t **) &queue, (queue_t*) task) ;
         userTasks++;
@@ -86,14 +137,14 @@ int task_create (task_t *task,void (*start_func)(void *),void *arg){
 }
 
 void task_exit (int exit_code){
-    if(queue_size((queue_t*) queue)!=0){
-        queue_remove((queue_t **) &queue,(queue_t*) currentContext);
-        userTasks--;
-    }
-    if(task_id()==1)
+    if(task_id()==1){
+        free(DispatcherContext.context.uc_stack.ss_sp);
         task_switch(&contextmain);
-    else
+    }
+    else{
+        currentContext->status=TERMINADA;
         task_switch(&DispatcherContext);
+    }
 }
 
 int task_switch (task_t *task) {
