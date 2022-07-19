@@ -1,3 +1,8 @@
+/*
+*   PingPong OS 
+*   GRR20206686 Dante Eleutério dos Santos  
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ucontext.h>
@@ -9,7 +14,7 @@
 task_t contextmain;
 task_t *currentContext;
 task_t DispatcherContext;
-task_t *queue;
+task_t *queue; /*Pointer to keep track of queue's head*/
 /*Counter for the ids*/
 int IDcounter;
 int userTasks;
@@ -36,7 +41,7 @@ int task_getprio (task_t *task){
         return currentContext->Sprio;
 }
 
-
+/*Control goes back to Dispatcher*/
 void task_yield (){
     task_switch(&DispatcherContext);
 }
@@ -45,14 +50,14 @@ void task_yield (){
 task_t *scheduler(){
     task_t* first=queue;
     task_t* aux=first->next;
-    first->Dprio=first->Sprio;
+    first->Dprio=first->Sprio; /*Reset next task's priority*/
     while (aux!=first){
         aux->Dprio--;
-        aux=aux->next;
+        aux=aux->next; /*Goes through queue aging the other tasks*/
     }
     aux=first->next;
     while (aux!=first){
-        if(queue->Dprio>aux->Dprio)
+        if(queue->Dprio>aux->Dprio) /*Finds the task with the smaller priority*/
             queue=aux;
         aux=aux->next;
     }
@@ -68,16 +73,16 @@ void Dispatcher(){
             task_switch(next_t);
             switch (next_t->status)
             {
-            case PRONTA:
+            case READY:
                 break;
-            case TERMINADA:
+            case FINISHED: /*Removes the task from the queue if it's done*/
                 if(queue_size((queue_t*) queue)!=0){
                     queue_remove((queue_t **) &queue,(queue_t*) next_t);
                     userTasks--;
                     free(next_t->context.uc_stack.ss_sp);
                 }
                 break;
-            case SUSPENSA:
+            case SUSPENDED:
                 break;
             default:
                 break;
@@ -93,7 +98,7 @@ void ppos_init (){
     userTasks=0;
     IDcounter=0;
     contextmain.id=0;
-    contextmain.status=PRONTA;
+    contextmain.status=READY;
     contextmain.next=NULL;
     contextmain.prev=NULL;
     currentContext=&contextmain;
@@ -121,7 +126,7 @@ int task_create (task_t *task,void (*start_func)(void *),void *arg){
     }
     IDcounter++;
     task->id=IDcounter;
-    task->status=PRONTA;
+    task->status=READY;
     task->next=NULL;
     task->prev=NULL;
     task->preemptable=0;
@@ -137,12 +142,12 @@ int task_create (task_t *task,void (*start_func)(void *),void *arg){
 }
 
 void task_exit (int exit_code){
-    if(task_id()==1){
+    if(task_id()==1){ /*Check if it's the dispatcher*/
         free(DispatcherContext.context.uc_stack.ss_sp);
         task_switch(&contextmain);
     }
     else{
-        currentContext->status=TERMINADA;
+        currentContext->status=FINISHED;
         task_switch(&DispatcherContext);
     }
 }

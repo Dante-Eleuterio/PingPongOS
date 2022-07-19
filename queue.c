@@ -1,3 +1,8 @@
+/*
+*   PingPong OS 
+*   GRR20206686 Dante Eleutério dos Santos  
+*/
+
 #include <stdio.h>
 #include "queue.h"
 
