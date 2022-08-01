@@ -5,6 +5,7 @@
         "ppos.h": "c",
         "ucontext.h": "c",
         "stdlib.h": "c",
-        "queue.h": "c"
+        "queue.h": "c",
+        "signal.h": "c"
     }
 }

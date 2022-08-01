@@ -10,6 +10,7 @@
 #define FINISHED 0
 #define READY 1
 #define SUSPENDED 2
+#define BUSY 3
 #include <ucontext.h>		// biblioteca POSIX de trocas de contexto
 
 // Estrutura que define um Task Control Block (TCB)
@@ -20,8 +21,13 @@ typedef struct task_t
   ucontext_t context ;			// contexto armazenado da tarefa
   short status ;			// pronta, rodando, suspensa, ...
   short preemptable ;			// pode ser preemptada?
-  int Sprio;
-  int Dprio;
+  int Sprio;        //Prioridade estatica
+  int Dprio;        //Prioridade Dinamica
+  int quantum;      //Tempo de quantum de cada tarefa
+  int activations;  //Numero de ativacoes
+  int Exe_time;     //Tempo total de execucao
+  int Pro_time;     //Tempo total de processamento
+  int joined;
    // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 
