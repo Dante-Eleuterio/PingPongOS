@@ -90,7 +90,7 @@ void task_suspend (task_t **queue){
     currentContext->status=SUSPENDED;
 }
 
-void resume_joined_tasks(int id){
+void resume_joined_tasks(int id,int exit_code){
     lock =1;
     task_t *first=Suspend_queue;
     task_t *aux=first;
@@ -98,11 +98,14 @@ void resume_joined_tasks(int id){
     if(size>=1){
         if(size==1 && aux->joined==id){
             task_resume(aux,&Suspend_queue);
+            aux->exit_code=exit_code;
         }
         else{   
             do{
-                if(aux->joined==id)
+                if(aux->joined==id){
                     task_resume(aux,&Suspend_queue);
+                    aux->exit_code=exit_code;
+                }
                 aux=aux->next;
             }while(aux!=first);
         }
@@ -123,7 +126,7 @@ int task_join(task_t *task){
     currentContext->joined=task->id;
     lock=0;
     task_yield();
-    return(task->id);
+    return(currentContext->exit_code);
 }
 task_t *scheduler(){
     lock=1;
@@ -225,6 +228,7 @@ void create_main(){
     contextmain.quantum=20;
     contextmain.activations=0;
     contextmain.joined=-1;
+    contextmain.exit_code=-1;
     queue_append((queue_t **) &Ready_queue, (queue_t*)&contextmain) ;
     userTasks++;
 }
@@ -292,6 +296,7 @@ int task_create (task_t *task,void (*start_func)(void *),void *arg){
     task->quantum=20;
     task->activations=0;
     task->joined=-1;
+    task->joined=-1;
     if(task->id>=2){
         queue_append((queue_t **) &Ready_queue, (queue_t*) task) ;
         userTasks++;
@@ -311,7 +316,7 @@ void task_exit (int exit_code){
     }
     else{
         currentContext->status=FINISHED;
-        resume_joined_tasks(task_id());
+        resume_joined_tasks(task_id(),exit_code);
         task_switch(&DispatcherContext);
     }
 }

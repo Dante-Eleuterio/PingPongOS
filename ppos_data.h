@@ -27,7 +27,8 @@ typedef struct task_t
   int activations;  //Numero de ativacoes
   int Exe_time;     //Tempo total de execucao
   int Pro_time;     //Tempo total de processamento
-  int joined;
+  int joined;       //Guardar o id da task que esta esperando
+  int exit_code;    //Codigo de saida do join
    // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 
