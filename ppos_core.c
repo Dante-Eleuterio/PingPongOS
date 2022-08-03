@@ -84,50 +84,40 @@ void print_queue2(){
     lock=1;
 }
 
-void task_suspend (task_t **queue){
-    queue_remove((queue_t **) &Ready_queue, (queue_t*)currentContext);
-    queue_append((queue_t **) queue, (queue_t*)currentContext);
-    currentContext->status=SUSPENDED;
-}
 
-void resume_joined_tasks(int id,int exit_code){
-    lock =1;
-    task_t *first=Suspend_queue;
-    task_t *aux=first;
-    int size=queue_size((queue_t*)Suspend_queue);
-    if(size>=1){
-        if(size==1 && aux->joined==id){
-            task_resume(aux,&Suspend_queue);
-            aux->exit_code=exit_code;
-        }
-        else{   
-            do{
-                if(aux->joined==id){
-                    task_resume(aux,&Suspend_queue);
-                    aux->exit_code=exit_code;
-                }
-                aux=aux->next;
-            }while(aux!=first);
-        }
-    }
-    lock=0;
-}
 void task_resume (task_t * task, task_t **queue){
     queue_remove((queue_t **) queue, (queue_t*)task);
     queue_append((queue_t **) &Ready_queue, (queue_t*)task);
     task->status=READY;
 }
 
+void task_suspend (task_t **queue){
+    queue_remove((queue_t **) &Ready_queue, (queue_t*)currentContext);
+    queue_append((queue_t **) queue, (queue_t*)currentContext);
+    currentContext->status=SUSPENDED;
+}
+
+
 int task_join(task_t *task){
     lock=1;
     if(!task || task->status==FINISHED)
         return -1;
-    task_suspend(&Suspend_queue);
-    currentContext->joined=task->id;
+    task_suspend(&task->joins_queue);
     lock=0;
     task_yield();
     return(currentContext->exit_code);
 }
+
+void resume_joined_tasks(int id,int exit_code){
+    lock =1;
+
+    while(currentContext->joins_queue){
+        currentContext->joins_queue->exit_code=exit_code;
+        task_resume(currentContext->joins_queue,&currentContext->joins_queue);
+    }
+    lock=0;
+}
+
 task_t *scheduler(){
     lock=1;
     task_t* first=Ready_queue;
@@ -181,14 +171,15 @@ void Dispatcher(){
 
 void quantum_handler(){
     ticks++;
-    if(lock){ /*Lock preemptions if the task is inside a kernel function*/
-        return;
-    }
+    
     if(!currentContext->preemptable){ /*Check if the current task is preemptable*/
         return;
     }
     if(currentContext->quantum>0){ /* Check if it's time to preempt it*/
         --currentContext->quantum;
+        return;
+    }
+    if(lock){ /*Lock preemptions if the task is inside a kernel function*/
         return;
     }
     else{
@@ -227,14 +218,12 @@ void create_main(){
     contextmain.Dprio=0;
     contextmain.quantum=20;
     contextmain.activations=0;
-    contextmain.joined=-1;
     contextmain.exit_code=-1;
     queue_append((queue_t **) &Ready_queue, (queue_t*)&contextmain) ;
     userTasks++;
 }
 
 void ppos_init (){
-    lock=0;
     set_timer();
     lock=1;
     dispatcher_timer=0;
@@ -295,8 +284,6 @@ int task_create (task_t *task,void (*start_func)(void *),void *arg){
     task->Dprio=0;
     task->quantum=20;
     task->activations=0;
-    task->joined=-1;
-    task->joined=-1;
     if(task->id>=2){
         queue_append((queue_t **) &Ready_queue, (queue_t*) task) ;
         userTasks++;
@@ -308,15 +295,17 @@ int task_create (task_t *task,void (*start_func)(void *),void *arg){
 
 void task_exit (int exit_code){
     lock=1;
-    currentContext->Exe_time=(systime()-currentContext->Exe_time);
-    printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n",currentContext->id,currentContext->Exe_time,currentContext->Pro_time,currentContext->activations);
     if(task_id()==1){ /*Check if it's the dispatcher*/
         free(DispatcherContext.context.uc_stack.ss_sp);
+        currentContext->Exe_time=(systime()-currentContext->Exe_time);
+        printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n",currentContext->id,currentContext->Exe_time,currentContext->Pro_time,currentContext->activations);
         task_switch(&contextmain);
     }
     else{
         currentContext->status=FINISHED;
         resume_joined_tasks(task_id(),exit_code);
+        currentContext->Exe_time=(systime()-currentContext->Exe_time);
+        printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n",currentContext->id,currentContext->Exe_time,currentContext->Pro_time,currentContext->activations);
         task_switch(&DispatcherContext);
     }
 }

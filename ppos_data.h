@@ -17,6 +17,7 @@
 typedef struct task_t
 {
   struct task_t *prev, *next ;		// ponteiros para usar em filas
+  struct task_t *joins_queue;           //Tarefas joined
   int id ;				// identificador da tarefa
   ucontext_t context ;			// contexto armazenado da tarefa
   short status ;			// pronta, rodando, suspensa, ...
@@ -27,7 +28,6 @@ typedef struct task_t
   int activations;  //Numero de ativacoes
   int Exe_time;     //Tempo total de execucao
   int Pro_time;     //Tempo total de processamento
-  int joined;       //Guardar o id da task que esta esperando
   int exit_code;    //Codigo de saida do join
    // ... (outros campos serão adicionados mais tarde)
 } task_t ;
