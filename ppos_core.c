@@ -25,7 +25,8 @@ task_t contextmain;
 task_t *currentContext;
 task_t DispatcherContext;
 task_t *Ready_queue; /*Pointer to keep track of queue's head*/
-task_t *Suspend_queue;
+task_t *Sleep_queue;
+
 unsigned int systime(){
     return ticks;
 }
@@ -71,18 +72,6 @@ void print_queue1(){
     printf("\n");
     lock=1;
 }
-void print_queue2(){
-    lock=0;
-    task_t *aux=Suspend_queue;
-    printf("\n");
-    for (int i = 0; i < queue_size((queue_t*)Suspend_queue); i++)
-    {
-        printf("%d ",aux->id);
-        aux=aux->next;
-    }
-    printf("\n");
-    lock=1;
-}
 
 
 void task_resume (task_t * task, task_t **queue){
@@ -95,6 +84,33 @@ void task_suspend (task_t **queue){
     queue_remove((queue_t **) &Ready_queue, (queue_t*)currentContext);
     queue_append((queue_t **) queue, (queue_t*)currentContext);
     currentContext->status=SUSPENDED;
+}
+
+void wake_up(){
+    task_t *aux=Sleep_queue;
+    task_t *awaken;
+        
+    if(Sleep_queue){
+        do{
+        if(aux->wake_up_time<=systime()){
+            awaken=aux;
+            aux=aux->next;
+            printf("AQUI\n");
+            task_resume(awaken,&Sleep_queue);
+        }
+        else{    
+            aux=aux->next;
+        }
+        }while(aux!=Sleep_queue);
+    }
+}
+
+void task_sleep(int t){
+    lock=1;
+    currentContext->wake_up_time=(systime()+t);
+    task_suspend(&Sleep_queue);
+    lock=0;
+    task_yield();
 }
 
 
@@ -122,16 +138,21 @@ task_t *scheduler(){
     lock=1;
     task_t* first=Ready_queue;
     task_t* aux=first;
-    do{
-        if(Ready_queue->Dprio>aux->Dprio) /*Finds the task with the smaller priority*/
-            Ready_queue=aux;
-        aux=aux->next;
-    }while(aux!=first);
-    Ready_queue->Dprio=Ready_queue->Sprio; /*Reset next task's priority*/
-    aux=Ready_queue->next;
-    while (aux!=Ready_queue){
-        aux->Dprio--;
-        aux=aux->next; /*Goes through Ready_queue aging the other tasks*/
+    
+    if(Ready_queue){
+        do{
+            if(Ready_queue->Dprio>aux->Dprio) /*Finds the task with the smaller priority*/
+                Ready_queue=aux;
+            aux=aux->next;
+        }while(aux!=first);
+
+        Ready_queue->Dprio=Ready_queue->Sprio; /*Reset next task's priority*/
+        aux=Ready_queue->next;
+
+        while (aux!=Ready_queue){
+            aux->Dprio--;
+            aux=aux->next; /*Goes through Ready_queue aging the other tasks*/
+        }
     }
     lock=0;
     return (Ready_queue);
@@ -141,6 +162,9 @@ void Dispatcher(){
     int time=0;
     task_t *next_t;
     while(userTasks>0){
+        if(Sleep_queue){
+            wake_up();
+        }
         next_t=scheduler();
         if(next_t!=NULL){
             next_t->status=BUSY;
@@ -219,6 +243,7 @@ void create_main(){
     contextmain.quantum=20;
     contextmain.activations=0;
     contextmain.exit_code=-1;
+    contextmain.wake_up_time=0;
     queue_append((queue_t **) &Ready_queue, (queue_t*)&contextmain) ;
     userTasks++;
 }
@@ -284,6 +309,7 @@ int task_create (task_t *task,void (*start_func)(void *),void *arg){
     task->Dprio=0;
     task->quantum=20;
     task->activations=0;
+    task->wake_up_time=0;
     if(task->id>=2){
         queue_append((queue_t **) &Ready_queue, (queue_t*) task) ;
         userTasks++;

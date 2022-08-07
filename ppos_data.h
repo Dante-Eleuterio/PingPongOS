@@ -11,6 +11,7 @@
 #define READY 1
 #define SUSPENDED 2
 #define BUSY 3
+#define SLEEPING 4;
 #include <ucontext.h>		// biblioteca POSIX de trocas de contexto
 
 // Estrutura que define um Task Control Block (TCB)
@@ -29,6 +30,7 @@ typedef struct task_t
   int Exe_time;     //Tempo total de execucao
   int Pro_time;     //Tempo total de processamento
   int exit_code;    //Codigo de saida do join
+  int wake_up_time;
    // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 
