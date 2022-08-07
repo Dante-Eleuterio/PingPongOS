@@ -91,17 +91,13 @@ void wake_up(){
     task_t *awaken;
         
     if(Sleep_queue){
-        do{
-        if(aux->wake_up_time<=systime()){
-            awaken=aux;
-            aux=aux->next;
-            printf("AQUI\n");
-            task_resume(awaken,&Sleep_queue);
-        }
-        else{    
+        for (int i = 0; i < queue_size((queue_t *) Sleep_queue); i++){
+            if(aux->wake_up_time<=systime()){
+                awaken=aux;
+                task_resume(awaken,&Sleep_queue);
+            }
             aux=aux->next;
         }
-        }while(aux!=Sleep_queue);
     }
 }
 
