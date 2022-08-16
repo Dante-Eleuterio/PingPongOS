@@ -27,6 +27,72 @@ task_t DispatcherContext;
 task_t *Ready_queue; /*Pointer to keep track of queue's head*/
 task_t *Sleep_queue;
 
+
+int sem_create (semaphore_t *s, int value){
+    lock=1;
+    s->counter=value;
+    s->queue=NULL;
+    s->created=1;
+    s->destroyed=0;
+    lock=0;
+    if(s->queue)
+        return -1;
+    else
+        return 0;
+}
+
+int sem_destroy (semaphore_t *s){
+    lock=1;
+    if(s->queue && s->created && !s->destroyed){
+        task_t *aux=s->queue;
+        task_t *resumed;
+        for (int i = 0; i < queue_size((queue_t *) s->queue); i++){
+            resumed=aux;
+            resumed->exit_code=-1;
+            aux=aux->next;
+            task_resume(resumed,&s->queue);
+        }
+        s->destroyed=1;
+        lock=0;
+        return 0;
+    }
+    lock=0;
+    return -1;
+}
+
+int sem_down (semaphore_t *s){
+    lock=1;
+
+    if(s->created && !s->destroyed){
+        s->counter--;
+        currentContext->exit_code=0;
+        if(s->counter<0){
+            task_suspend(&s->queue);
+            lock=0;
+            task_yield();
+        }
+        lock=0;
+        return currentContext->exit_code;
+    }
+    lock=0;
+    return -1;
+}
+
+int sem_up (semaphore_t *s){
+    lock=1;
+
+    if(s->created && !s->destroyed){
+        s->counter++;
+        if(s->counter<=0){
+            task_resume(s->queue,&s->queue);
+        }
+        lock=0;
+        return 0;
+    }
+    lock=0;
+    return-1;
+}
+
 unsigned int systime(){
     return ticks;
 }
