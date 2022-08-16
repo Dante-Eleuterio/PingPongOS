@@ -17,20 +17,20 @@
 // Estrutura que define um Task Control Block (TCB)
 typedef struct task_t
 {
-  struct task_t *prev, *next ;		// ponteiros para usar em filas
-  struct task_t *joins_queue;           //Tarefas joined
-  int id ;				// identificador da tarefa
-  ucontext_t context ;			// contexto armazenado da tarefa
-  short status ;			// pronta, rodando, suspensa, ...
-  short preemptable ;			// pode ser preemptada?
-  int Sprio;        //Prioridade estatica
-  int Dprio;        //Prioridade Dinamica
-  int quantum;      //Tempo de quantum de cada tarefa
-  int activations;  //Numero de ativacoes
-  int Exe_time;     //Tempo total de execucao
-  int Pro_time;     //Tempo total de processamento
-  int exit_code;    //Codigo de saida do join
-  int wake_up_time;
+  struct task_t *prev, *next ;  // ponteiros para usar em filas
+  struct task_t *joins_queue;   //Tarefas joined
+  int id ;				              // identificador da tarefa
+  ucontext_t context ;			    // contexto armazenado da tarefa
+  short status ;			          // pronta, rodando, suspensa, ...
+  short preemptable ;			      // pode ser preemptada?
+  int Sprio;                    //Prioridade estatica
+  int Dprio;                    //Prioridade Dinamica
+  int quantum;                  //Tempo de quantum de cada tarefa
+  int activations;              //Numero de ativacoes
+  int Exe_time;                 //Tempo total de execucao
+  int Pro_time;                 //Tempo total de processamento
+  int exit_code;                //Codigo de saida do join
+  int wake_up_time;             //Horario do despertador da tarefa
    // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 

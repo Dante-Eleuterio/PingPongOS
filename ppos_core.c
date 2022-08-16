@@ -60,19 +60,6 @@ void task_yield (){
     task_switch(&DispatcherContext);
 }
 
-void print_queue1(){
-    lock=0;
-    task_t *aux=Ready_queue;
-    printf("\n");
-    for (int i = 0; i < queue_size((queue_t*) Ready_queue); i++)
-    {
-        printf("%d ",aux->id);
-        aux=aux->next;
-    }
-    printf("\n");
-    lock=1;
-}
-
 
 void task_resume (task_t * task, task_t **queue){
     queue_remove((queue_t **) queue, (queue_t*)task);
@@ -86,21 +73,24 @@ void task_suspend (task_t **queue){
     currentContext->status=SUSPENDED;
 }
 
+/*Wake up all the tasks that are due*/
 void wake_up(){
     task_t *aux=Sleep_queue;
     task_t *awaken;
-        
+    
     if(Sleep_queue){
         for (int i = 0; i < queue_size((queue_t *) Sleep_queue); i++){
             if(aux->wake_up_time<=systime()){
                 awaken=aux;
+                aux=aux->next;
                 task_resume(awaken,&Sleep_queue);
-            }
-            aux=aux->next;
+            }else
+                aux=aux->next;
         }
     }
 }
 
+/*Puts the task to sleep and sets an alarm*/
 void task_sleep(int t){
     lock=1;
     currentContext->wake_up_time=(systime()+t);
@@ -109,7 +99,7 @@ void task_sleep(int t){
     task_yield();
 }
 
-
+/*Suspend the current task until the joined task exits*/
 int task_join(task_t *task){
     lock=1;
     if(!task || task->status==FINISHED)
@@ -120,6 +110,7 @@ int task_join(task_t *task){
     return(currentContext->exit_code);
 }
 
+/*Resume all the tasks that have joined exiting task*/
 void resume_joined_tasks(int id,int exit_code){
     lock =1;
 
