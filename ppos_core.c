@@ -28,13 +28,24 @@ task_t *Ready_queue; /*Pointer to keep track of queue's head*/
 task_t *Sleep_queue;
 
 
+ 
+void enter_cs (int *lock)
+{
+  // atomic OR (Intel macro for GCC)
+  while (__sync_fetch_and_or (lock, 1)) ;   // busy waiting
+}
+ 
+void leave_cs (int *lock)
+{
+  (*lock) = 0 ;
+}
+
+
 int sem_create (semaphore_t *s, int value){
-    lock=1;
     s->counter=value;
     s->queue=NULL;
     s->created=1;
     s->destroyed=0;
-    lock=0;
     if(s->queue)
         return -1;
     else
@@ -42,7 +53,6 @@ int sem_create (semaphore_t *s, int value){
 }
 
 int sem_destroy (semaphore_t *s){
-    lock=1;
     if(s->queue && s->created && !s->destroyed){
         task_t *aux=s->queue;
         task_t *resumed;
@@ -53,43 +63,39 @@ int sem_destroy (semaphore_t *s){
             task_resume(resumed,&s->queue);
         }
         s->destroyed=1;
-        lock=0;
         return 0;
     }
-    lock=0;
     return -1;
 }
 
 int sem_down (semaphore_t *s){
-    lock=1;
-
+    enter_cs(&lock);
     if(s->created && !s->destroyed){
         s->counter--;
+        leave_cs(&lock);
         currentContext->exit_code=0;
         if(s->counter<0){
             task_suspend(&s->queue);
-            lock=0;
+            leave_cs(&lock);
             task_yield();
         }
-        lock=0;
         return currentContext->exit_code;
     }
-    lock=0;
+    leave_cs(&lock);
     return -1;
 }
 
 int sem_up (semaphore_t *s){
-    lock=1;
-
+    enter_cs(&lock);
     if(s->created && !s->destroyed){
         s->counter++;
+        leave_cs(&lock);
         if(s->counter<=0){
             task_resume(s->queue,&s->queue);
         }
-        lock=0;
         return 0;
     }
-    lock=0;
+    leave_cs(&lock);
     return-1;
 }
 
@@ -98,7 +104,6 @@ unsigned int systime(){
 }
 
 void task_setprio (task_t *task, int prio){
-    lock=1;
     if(prio<=20 && prio >=-20){
         if(task){
             task->Sprio = prio;
@@ -111,7 +116,6 @@ void task_setprio (task_t *task, int prio){
     }
     else
         fprintf(stderr,"Priority greater than 20 or lesser than -20");
-    lock=0;
 }
 
 int task_getprio (task_t *task){
@@ -158,37 +162,31 @@ void wake_up(){
 
 /*Puts the task to sleep and sets an alarm*/
 void task_sleep(int t){
-    lock=1;
     currentContext->wake_up_time=(systime()+t);
     task_suspend(&Sleep_queue);
-    lock=0;
     task_yield();
 }
 
 /*Suspend the current task until the joined task exits*/
 int task_join(task_t *task){
-    lock=1;
     if(!task || task->status==FINISHED)
         return -1;
     task_suspend(&task->joins_queue);
-    lock=0;
     task_yield();
     return(currentContext->exit_code);
 }
 
 /*Resume all the tasks that have joined exiting task*/
 void resume_joined_tasks(int id,int exit_code){
-    lock =1;
 
     while(currentContext->joins_queue){
         currentContext->joins_queue->exit_code=exit_code;
         task_resume(currentContext->joins_queue,&currentContext->joins_queue);
     }
-    lock=0;
+    leave_cs(&lock);
 }
 
 task_t *scheduler(){
-    lock=1;
     task_t* first=Ready_queue;
     task_t* aux=first;
     
@@ -207,7 +205,6 @@ task_t *scheduler(){
             aux=aux->next; /*Goes through Ready_queue aging the other tasks*/
         }
     }
-    lock=0;
     return (Ready_queue);
 }
 
@@ -256,9 +253,9 @@ void quantum_handler(){
         --currentContext->quantum;
         return;
     }
-    if(lock){ /*Lock preemptions if the task is inside a kernel function*/
-        return;
-    }
+    // if(lock){ /*Lock preemptions if the task is inside a kernel function*/
+    //     return;
+    // }
     else{
         currentContext->quantum=20;
         currentContext->status=READY;
@@ -303,7 +300,7 @@ void create_main(){
 
 void ppos_init (){
     set_timer();
-    lock=1;
+    lock=0;
     dispatcher_timer=0;
     userTasks=0;
     IDcounter=0;
@@ -330,11 +327,9 @@ void ppos_init (){
     setvbuf (stdout, 0, _IONBF, 0) ;
     task_create(&DispatcherContext,Dispatcher,NULL);
     DispatcherContext.preemptable=0;
-    lock=0;
 }
 
 int task_create (task_t *task,void (*start_func)(void *),void *arg){
-    lock=1;
     char *stack;
     getcontext(&task->context);
     stack = malloc (STACKSIZE) ;
@@ -368,12 +363,10 @@ int task_create (task_t *task,void (*start_func)(void *),void *arg){
         userTasks++;
     }
     makecontext(&task->context, (void*)(*start_func), 1,arg) ;
-    lock=0;
     return task->id;
 }
 
 void task_exit (int exit_code){
-    lock=1;
     if(task_id()==1){ /*Check if it's the dispatcher*/
         free(DispatcherContext.context.uc_stack.ss_sp);
         currentContext->Exe_time=(systime()-currentContext->Exe_time);
@@ -390,14 +383,12 @@ void task_exit (int exit_code){
 }
 
 int task_switch (task_t *task) {
-    lock=1;
     task_t *aux;
     aux=currentContext;
     task->activations++;
     currentContext=task;
     if(task->id==1)
         dispatcher_timer=systime(); /*Used to calculate the dispatcher processor timer*/
-    lock=0;
     swapcontext (&aux->context, &task->context) ;
     return(0);
 }
