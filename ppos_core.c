@@ -25,24 +25,11 @@ task_t *currentContext;
 task_t DispatcherContext;
 task_t *Ready_queue; /*Pointer to keep track of queue's head*/
 task_t *Sleep_queue;
-
-void print_queue1(task_t * q){
-    task_t *aux=q;
-    printf("\n");
-    for (int i = 0; i < queue_size((queue_t*) aux); i++)
-    {
-        printf("%d ",aux->id);
-        aux=aux->next;
-    }
-    printf("\n");
-}
  
 void enter_cs (int *lock)
 {
-  // atomic OR (Intel macro for GCC)
-    // printf("a task %d entrou aq com lock %d\n",currentContext->id,*lock);
-    while (__sync_fetch_and_or (lock, 1)){    } // busy waiting
-    // printf("a task %d saiu daq com lock %d\n",currentContext->id,*lock);
+    // atomic OR (Intel macro for GCC)
+    while (__sync_fetch_and_or (lock, 1)){} // busy waiting
 }
  
 void leave_cs (int *lock)
@@ -50,8 +37,8 @@ void leave_cs (int *lock)
     (*lock) = 0 ;
 }
 
+/*Enter the critical zone of the semaphore to do a down operation while protected by an atomic lock*/
 int sem_down (semaphore_t *s){
-    // printf("DOWN\n");
     enter_cs(&s->lock);
     globalLock=1;
     if(s){
@@ -73,8 +60,8 @@ int sem_down (semaphore_t *s){
     return -1;
 }
 
+/*Enter the critical zone of the semaphore to do an up operation while protected by an atomic lock*/
 int sem_up (semaphore_t *s){
-    // printf("UP\n");
     enter_cs(&s->lock);
     globalLock=1;
     if(s){
@@ -91,6 +78,7 @@ int sem_up (semaphore_t *s){
     return-1;
 }
 
+/*Creates a semaphore*/
 int sem_create (semaphore_t *s, int value){
     globalLock=1;
     s->counter=value;
@@ -104,6 +92,7 @@ int sem_create (semaphore_t *s, int value){
         return 0;
 }
 
+/*Destroys a semaphore*/
 int sem_destroy (semaphore_t *s){
     globalLock=1;
     if(s->created && !s->destroyed){
