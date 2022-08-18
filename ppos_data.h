@@ -40,6 +40,7 @@ typedef struct
   int counter;
   int created;
   int destroyed;
+  int lock;
   task_t * queue;
 
 } semaphore_t ;
