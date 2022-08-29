@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include "ppos.h"
 #include "queue.h"
+#include <string.h>
 
 #define STACKSIZE 64*1024	/* tamanho de pilha das threads */
 int ticks;
@@ -37,11 +38,100 @@ void leave_cs (int *lock)
     (*lock) = 0 ;
 }
 
+/*Creates a message queue*/
+int mqueue_create (mqueue_t *queue, int max, int size){
+    queue->buffer=NULL;
+    queue->size=size;
+    if(sem_create (&queue->sem_buffer, 1)==-1)
+        return -1;
+    if(sem_create (&queue->sem_items, 0)==-1)
+        return -1;
+    if(sem_create (&queue->sem_vacancies, max)==-1)
+        return -1;
+    return 0;
+}
+
+/*Sends a msg to the message queue*/
+int mqueue_send (mqueue_t *queue, void *msg){
+    globalLock=1;
+
+    if(sem_down(&queue->sem_vacancies)<0){
+        globalLock=0;
+        return -1;
+    }
+    if(sem_down (&queue->sem_buffer)<0){
+        globalLock=0;
+        return -1;
+    }
+    
+    mqueueBuffer_t *aux =malloc(sizeof(mqueueBuffer_t));
+    if(!aux){
+        sem_up(&queue->sem_buffer);
+        sem_up(&queue->sem_vacancies);
+        globalLock=0;
+        return -1;
+    }
+    bcopy(msg,&aux->elem,queue->size);
+    queue_append((queue_t **)&queue->buffer, (queue_t*)aux);
+    sem_up(&queue->sem_buffer);
+    sem_up(&queue->sem_items);
+    globalLock=0;
+    return 0;
+}
+
+/*Receives a message from the message queue*/
+int mqueue_recv (mqueue_t *queue, void *msg){
+    globalLock=1;
+
+    if(sem_down (&queue->sem_items)<0){
+        globalLock=0;
+        return -1;
+    }
+    if(sem_down (&queue->sem_buffer)<0){
+        globalLock=0;
+        return -1;
+    }
+    mqueueBuffer_t *aux;
+    aux=queue->buffer;
+    queue_remove((queue_t **)&queue->buffer, (queue_t*)aux);
+    bcopy(&aux->elem,msg,queue->size);
+    free(aux);
+    sem_up(&queue->sem_buffer);
+    sem_up(&queue->sem_vacancies);
+    globalLock=0;
+    return 0;
+}
+
+/*Return the message queue size*/
+int mqueue_msgs (mqueue_t *queue){
+    if(!queue || !queue->buffer)
+        return -1;
+    int aux = queue_size((queue_t *) queue->buffer);
+    return aux;
+}
+
+/*Destroys the message queue and its semaphores*/
+int mqueue_destroy (mqueue_t *queue){
+    globalLock=1;
+    mqueueBuffer_t *aux;
+    while(queue->buffer){
+        aux=queue->buffer;
+        queue_remove((queue_t **)&queue->buffer, (queue_t*)queue->buffer);
+        free(aux);
+    }
+    free(queue->buffer);    
+    sem_destroy(&queue->sem_buffer);
+    sem_destroy(&queue->sem_items);
+    sem_destroy(&queue->sem_vacancies);
+    globalLock=0;
+    return 0;
+}
+
 /*Enter the critical zone of the semaphore to do a down operation while protected by an atomic lock*/
 int sem_down (semaphore_t *s){
     enter_cs(&s->lock);
     globalLock=1;
-    if(s){
+    if(!s->destroyed){
         s->counter--;
         if(s->counter<0){
             globalLock=0;
@@ -64,7 +154,7 @@ int sem_down (semaphore_t *s){
 int sem_up (semaphore_t *s){
     enter_cs(&s->lock);
     globalLock=1;
-    if(s){
+    if(!s->destroyed){
         s->counter++;
         if(s->counter<=0){
             task_resume(s->queue,&s->queue);
